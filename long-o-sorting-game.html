@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Long O Sounds Sorting Game</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@700;900&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Nunito', sans-serif;
+  min-height: 100vh;
+  background: #e8f4fd;
+  background-image:
+    radial-gradient(circle at 10% 15%, #fce4ec 0%, transparent 35%),
+    radial-gradient(circle at 90% 80%, #f3e5f5 0%, transparent 35%),
+    radial-gradient(circle at 80% 5%,  #e8f5e9 0%, transparent 30%),
+    radial-gradient(circle at 20% 85%, #fff8e1 0%, transparent 30%);
+  padding: 14px 10px 36px;
+  overflow-x: hidden;
+}
+
+h1 {
+  font-family: 'Baloo 2', cursive;
+  text-align: center;
+  font-size: 2rem;
+  color: #1a237e;
+  margin-bottom: 3px;
+}
+.subtitle {
+  text-align: center;
+  font-size: .98rem;
+  font-weight: 700;
+  color: #546e7a;
+  margin-bottom: 12px;
+}
+.score-bar {
+  text-align: center;
+  font-family: 'Baloo 2', cursive;
+  font-size: 1.05rem;
+  color: #37474f;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+/* ── SENTENCE BANK ── */
+#sentence-bank {
+  background: white;
+  border-radius: 20px;
+  border: 3px dashed #ce93d8;
+  padding: 12px 14px 14px;
+  min-height: 75px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+}
+.bank-label {
+  text-align: center;
+  font-size: .74rem;
+  font-weight: 900;
+  color: #ab47bc;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+/* ── SENTENCE CARDS ── */
+.sent-card {
+  background: #f3e5f5;
+  border: 3px solid #ce93d8;
+  border-radius: 14px;
+  padding: 10px 16px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1a237e;
+  cursor: grab;
+  line-height: 1.5;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.10);
+  transition: transform 0.15s, box-shadow 0.15s;
+  user-select: none;
+  width: 100%;
+}
+.sent-card:hover {
+  transform: translateY(-2px) scale(1.015);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.14);
+}
+.sent-card.dragging { opacity: 0.35; cursor: grabbing; }
+.sent-card.placed   { cursor: default; }
+.sent-card.placed:hover { transform: none; box-shadow: 0 3px 10px rgba(0,0,0,0.10); }
+
+@keyframes correct-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.1); }
+  70%  { transform: scale(0.96); }
+  100% { transform: scale(1); }
+}
+.sent-card.correct-anim { animation: correct-pop 0.4s ease; }
+
+/* Target word highlight */
+.target { font-style: italic; font-weight: 900; font-size: 1.18em; }
+
+/* ── COLUMNS ── */
+.columns {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.column {
+  border-radius: 18px;
+  padding: 10px 6px 14px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+.column.drag-over {
+  transform: scale(1.03);
+  box-shadow: 0 0 0 4px white, 0 0 0 7px #7e57c2;
+}
+
+/* Column colours */
+.col-oe   { background: #fff3e0; border: 3px solid #ffcc80; }
+.col-o    { background: #e8f5e9; border: 3px solid #a5d6a7; }
+.col-oe-  { background: #e3f2fd; border: 3px solid #90caf9; }   /* o_e */
+.col-ow   { background: #fce4ec; border: 3px solid #f48fb1; }
+.col-oa   { background: #ede7f6; border: 3px solid #ce93d8; }
+
+.col-header {
+  border-radius: 11px;
+  padding: 8px 6px 6px;
+  font-family: 'Baloo 2', cursive;
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: center;
+  line-height: 1.25;
+  flex-shrink: 0;
+}
+.col-oe   .col-header { background: #fb8c00; color: white; }
+.col-o    .col-header { background: #43a047; color: white; }
+.col-oe-  .col-header { background: #1e88e5; color: white; }
+.col-ow   .col-header { background: #e91e63; color: white; }
+.col-oa   .col-header { background: #7e57c2; color: white; }
+
+.col-subhead { font-size: .63rem; font-weight: 800; opacity: .9; margin-top: 1px; }
+
+.drop-hint {
+  color: #b0bec5; font-size: .75rem; font-weight: 700;
+  text-align: center; padding: 8px 0;
+}
+
+/* Placed card colours match column */
+.col-oe   .sent-card { background: #fff8e1; border-color: #ffd54f; }
+.col-o    .sent-card { background: #f1f8e9; border-color: #81c784; }
+.col-oe-  .sent-card { background: #e1f5fe; border-color: #64b5f6; }
+.col-ow   .sent-card { background: #fce4ec; border-color: #f06292; }
+.col-oa   .sent-card { background: #ede7f6; border-color: #ba68c8; }
+
+/* target colours per column */
+.col-oe   .target { color: #e65100; }
+.col-o    .target { color: #2e7d32; }
+.col-oe-  .target { color: #1565c0; }
+.col-ow   .target { color: #880e4f; }
+.col-oa   .target { color: #4a148c; }
+
+/* bank card target */
+#sentence-bank .target { color: #d81b60; }
+
+/* ── RESET ── */
+#reset-btn {
+  display: block; margin: 0 auto;
+  background: #5e35b1; color: white; border: none;
+  border-radius: 14px; padding: 10px 32px;
+  font-family: 'Baloo 2', cursive; font-size: 1.05rem; font-weight: 800;
+  cursor: pointer; box-shadow: 0 4px 12px rgba(94,53,177,0.28);
+  transition: background 0.2s, transform 0.1s;
+}
+#reset-btn:hover { background: #4527a0; transform: scale(1.04); }
+
+/* ── CONFETTI ── */
+#confetti-canvas {
+  position: fixed; top:0; left:0; width:100%; height:100%;
+  pointer-events:none; z-index:9999;
+}
+
+/* ── DONE BANNER ── */
+#done-banner {
+  display: none;
+  position: fixed; top:50%; left:50%;
+  transform: translate(-50%,-50%) scale(0.7);
+  background: white; border-radius: 26px;
+  padding: 32px 44px; text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  z-index: 10000;
+  font-family: 'Baloo 2', cursive;
+  animation: pop-in 0.45s cubic-bezier(.34,1.56,.64,1) forwards;
+}
+@keyframes pop-in { to { transform: translate(-50%,-50%) scale(1); } }
+#done-banner h2 { font-size: 2rem; color: #4a148c; margin-bottom: 8px; }
+#done-banner p  { font-size: 1rem; color: #546e7a; margin-bottom: 18px; }
+#done-banner button {
+  background: #7e57c2; color: white; border: none;
+  border-radius: 13px; padding: 9px 28px;
+  font-family: 'Baloo 2', cursive; font-size: 1rem; font-weight: 800; cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<h1>🌟 Long O Sounds Sorting</h1>
+<p class="subtitle">Read each sentence — drag it to the column that matches the spelling of the <strong>long O</strong> sound!</p>
+<div class="score-bar" id="score-bar">⭐ 0 / 15 sorted!</div>
+
+<div id="sentence-bank">
+  <div class="bank-label">✨ Drag a sentence to the right column!</div>
+</div>
+
+<div class="columns">
+  <div class="column col-oe" id="col-oe" ondragover="allowDrop(event)" ondrop="dropOnCol(event,'oe')">
+    <div class="col-header">
+      J<span style="text-decoration:underline">oe</span>
+      <div class="col-subhead">oe spelling</div>
+    </div>
+    <p class="drop-hint" id="hint-oe">Drop here</p>
+  </div>
+  <div class="column col-o" id="col-o" ondragover="allowDrop(event)" ondrop="dropOnCol(event,'o')">
+    <div class="col-header">
+      g<span style="text-decoration:underline">o</span>
+      <div class="col-subhead">o spelling</div>
+    </div>
+    <p class="drop-hint" id="hint-o">Drop here</p>
+  </div>
+  <div class="column col-oe-" id="col-oe-" ondragover="allowDrop(event)" ondrop="dropOnCol(event,'oe-')">
+    <div class="col-header">
+      h<span style="text-decoration:underline">o</span>m<span style="text-decoration:underline">e</span>
+      <div class="col-subhead">o_e spelling</div>
+    </div>
+    <p class="drop-hint" id="hint-oe-">Drop here</p>
+  </div>
+  <div class="column col-ow" id="col-ow" ondragover="allowDrop(event)" ondrop="dropOnCol(event,'ow')">
+    <div class="col-header">
+      m<span style="text-decoration:underline">ow</span>
+      <div class="col-subhead">ow spelling</div>
+    </div>
+    <p class="drop-hint" id="hint-ow">Drop here</p>
+  </div>
+  <div class="column col-oa" id="col-oa" ondragover="allowDrop(event)" ondrop="dropOnCol(event,'oa')">
+    <div class="col-header">
+      g<span style="text-decoration:underline">oa</span>t
+      <div class="col-subhead">oa spelling</div>
+    </div>
+    <p class="drop-hint" id="hint-oa">Drop here</p>
+  </div>
+</div>
+
+<button id="reset-btn" onclick="resetGame()">🔄 Start Over</button>
+
+<canvas id="confetti-canvas"></canvas>
+<div id="done-banner">
+  <h2>🎉 Amazing Job! 🎉</h2>
+  <p>You sorted all 15 Long O sentences!</p>
+  <button onclick="resetGame()">Play Again</button>
+</div>
+
+<script>
+// sound key: oe | o | oe- (o_e) | ow | oa
+// The "word" field is what gets highlighted in the sentence.
+const DATA = [
+  // oe
+  { word:"toe",    sound:"oe",  sentence:"I hurt my toe on the table." },
+  { word:"foe",    sound:"oe",  sentence:"The knight faced his foe in battle." },
+  { word:"doe",    sound:"oe",  sentence:"A doe and her fawn ran past us." },
+  // o
+  { word:"go",     sound:"o",   sentence:"It is time to go to school." },
+  { word:"no",     sound:"o",   sentence:"She said no to the extra cookie." },
+  { word:"so",     sound:"o",   sentence:"The music was so loud and fun." },
+  // o_e
+  { word:"home",   sound:"oe-", sentence:"We drove home after the big game." },
+  { word:"note",   sound:"oe-", sentence:"She left a note on the fridge." },
+  { word:"bone",   sound:"oe-", sentence:"The dog buried a bone in the yard." },
+  // ow
+  { word:"snow",   sound:"ow",  sentence:"We played in the snow all morning." },
+  { word:"blow",   sound:"ow",  sentence:"Watch me blow out the candles!" },
+  { word:"elbow",  sound:"ow",  sentence:"She bumped her elbow on the door." },
+  // oa
+  { word:"coat",   sound:"oa",  sentence:"Put on your coat before you go outside." },
+  { word:"road",   sound:"oa",  sentence:"We crossed the road at the crosswalk." },
+  { word:"toast",  sound:"oa",  sentence:"I like butter on my toast." },
+];
+
+// Patterns to highlight per sound
+const PATTERNS = {
+  "oe":  /\boe\b|oe(?=[^a-z]|$)/i,
+  "o":   null, // handled specially
+  "oe-": /o(?=[^aeiou])[a-z]*e\b/i,
+  "ow":  /ow/i,
+  "oa":  /oa/i,
+};
+
+// For each item, highlight the target spelling inside the word in the sentence
+function buildHTML(sentence, word, sound) {
+  // Find the word in the sentence (case insensitive, whole word)
+  const wordRe = new RegExp(`\\b(${escRe(word)})\\b`, 'i');
+  return sentence.replace(wordRe, match => {
+    // highlight the spelling pattern inside the matched word
+    let inner = match;
+    if (sound === "oe") {
+      inner = match.replace(/oe/i, s => `<u>${s}</u>`);
+    } else if (sound === "o") {
+      // just highlight the 'o' that makes the long O sound (first o in the word)
+      inner = match.replace(/o/i, s => `<u>${s}</u>`);
+    } else if (sound === "oe-") {
+      // highlight o and silent e
+      inner = match.replace(/^(.*?)(o)(.*)(e)$/i, (_, a,o,mid,e) =>
+        `${a}<u>${o}</u>${mid}<u>${e}</u>`);
+    } else if (sound === "ow") {
+      inner = match.replace(/ow/i, s => `<u>${s}</u>`);
+    } else if (sound === "oa") {
+      inner = match.replace(/oa/i, s => `<u>${s}</u>`);
+    }
+    return `<span class="target">${inner}</span>`;
+  });
+}
+
+function escRe(s) { return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+
+function shuffle(a) {
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+let draggedId = null;
+let solved = 0;
+const TOTAL = DATA.length;
+
+function buildBank() {
+  const bank = document.getElementById('sentence-bank');
+  bank.querySelectorAll('.sent-card').forEach(c=>c.remove());
+  shuffle([...DATA]).forEach(item => bank.appendChild(makeCard(item)));
+}
+
+function makeCard(item) {
+  const div = document.createElement('div');
+  div.className = 'sent-card';
+  div.id = 'card-' + item.word;
+  div.dataset.word  = item.word;
+  div.dataset.sound = item.sound;
+  div.setAttribute('draggable', true);
+  div.innerHTML = buildHTML(item.sentence, item.word, item.sound);
+
+  div.addEventListener('dragstart', e => {
+    draggedId = item.word;
+    div.classList.add('dragging');
+    e.dataTransfer.setData('text', item.word);
+  });
+  div.addEventListener('dragend', () => {
+    div.classList.remove('dragging');
+    document.querySelectorAll('.column').forEach(c=>c.classList.remove('drag-over'));
+    draggedId = null;
+  });
+  div.addEventListener('touchstart', touchStart, {passive:true});
+  div.addEventListener('touchmove',  touchMove,  {passive:false});
+  div.addEventListener('touchend',   touchEnd);
+  return div;
+}
+
+function allowDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.column').forEach(col => {
+    col.addEventListener('dragleave', e => {
+      if (!col.contains(e.relatedTarget)) col.classList.remove('drag-over');
+    });
+  });
+});
+
+function dropOnCol(e, colSound) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const word = draggedId || e.dataTransfer.getData('text');
+  if (!word) return;
+  const card = document.getElementById('card-' + word);
+  if (!card || card.dataset.placed) return;
+  if (card.dataset.sound === colSound) {
+    placeCard(word, colSound);
+  } else {
+    shakeWrong(card);
+  }
+  draggedId = null;
+}
+
+function placeCard(word, sound) {
+  const card = document.getElementById('card-' + word);
+  if (!card || card.dataset.placed) return;
+  card.dataset.placed = '1';
+  card.classList.remove('dragging');
+  card.classList.add('placed');
+  card.removeAttribute('draggable');
+  const col = document.getElementById('col-' + sound);
+  document.getElementById('hint-' + sound).style.display = 'none';
+  col.appendChild(card);
+  card.classList.add('correct-anim');
+  solved++;
+  document.getElementById('score-bar').textContent = `⭐ ${solved} / ${TOTAL} sorted!`;
+  launchConfetti();
+  if (solved === TOTAL) setTimeout(showDone, 1300);
+}
+
+function shakeWrong(el) {
+  let dir=1, i=0;
+  const iv = setInterval(()=>{
+    el.style.transform=`translateX(${dir*10}px)`;
+    dir*=-1; i++;
+    if(i>=6){clearInterval(iv);el.style.transform='';}
+  },55);
+}
+
+// ── CONFETTI ──────────────────────────────────────
+const canvas = document.getElementById('confetti-canvas');
+const ctx    = canvas.getContext('2d');
+let particles=[], animId=null;
+
+function launchConfetti() {
+  canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+  const colors=['#f06292','#aed581','#4dd0e1','#ffb74d','#ba68c8','#fff176','#80deea','#ff8a65'];
+  for(let i=0;i<90;i++){
+    particles.push({
+      x:Math.random()*canvas.width, y:-10,
+      w:8+Math.random()*9, h:5+Math.random()*6,
+      color:colors[Math.floor(Math.random()*colors.length)],
+      speed:3+Math.random()*5, angle:Math.random()*360,
+      spin:(Math.random()-.5)*7, drift:(Math.random()-.5)*3
+    });
+  }
+  if(!animId) animLoop();
+}
+
+function animLoop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  particles.forEach(p=>{
+    p.y+=p.speed; p.x+=p.drift; p.angle+=p.spin;
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.angle*Math.PI/180);
+    ctx.fillStyle=p.color; ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h); ctx.restore();
+  });
+  particles=particles.filter(p=>p.y<canvas.height+20);
+  animId=particles.length>0?requestAnimationFrame(animLoop):null;
+  if(!animId) ctx.clearRect(0,0,canvas.width,canvas.height);
+}
+
+function showDone(){
+  launchConfetti(); launchConfetti();
+  document.getElementById('done-banner').style.display='block';
+}
+
+function resetGame(){
+  solved=0; particles=[];
+  if(animId){cancelAnimationFrame(animId);animId=null;}
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  document.getElementById('done-banner').style.display='none';
+  document.getElementById('score-bar').textContent=`⭐ 0 / ${TOTAL} sorted!`;
+  ['oe','o','oe-','ow','oa'].forEach(s=>{
+    document.getElementById('col-'+s).querySelectorAll('.sent-card').forEach(c=>c.remove());
+    document.getElementById('hint-'+s).style.display='';
+  });
+  buildBank();
+}
+
+// ── TOUCH SUPPORT ─────────────────────────────────
+let touchCard=null, touchClone=null, lastTZ=null;
+
+function touchStart(e){
+  touchCard=e.currentTarget;
+  if(touchCard.dataset.placed) return;
+  draggedId=touchCard.dataset.word;
+  const r=touchCard.getBoundingClientRect();
+  touchClone=touchCard.cloneNode(true);
+  touchClone.style.cssText=`position:fixed;pointer-events:none;opacity:0.88;z-index:1000;
+    width:${r.width}px;left:${r.left}px;top:${r.top}px;transition:none;
+    box-shadow:0 10px 30px rgba(0,0,0,0.22);border-radius:14px;font-family:'Nunito',sans-serif;`;
+  document.body.appendChild(touchClone);
+  touchCard.style.opacity='0.3';
+}
+
+function touchMove(e){
+  if(!touchClone)return;
+  e.preventDefault();
+  const t=e.touches[0];
+  touchClone.style.top=(t.clientY-30)+'px';
+  touchClone.style.left=(t.clientX-touchClone.offsetWidth/2)+'px';
+  touchClone.style.display='none';
+  const el=document.elementFromPoint(t.clientX,t.clientY);
+  touchClone.style.display='';
+  const dz=el?el.closest('.column'):null;
+  if(lastTZ&&lastTZ!==dz)lastTZ.classList.remove('drag-over');
+  if(dz){dz.classList.add('drag-over');lastTZ=dz;}
+}
+
+function touchEnd(e){
+  if(!touchClone)return;
+  touchClone.remove();touchClone=null;
+  if(touchCard)touchCard.style.opacity='';
+  document.querySelectorAll('.column').forEach(c=>c.classList.remove('drag-over'));
+  const t=e.changedTouches[0];
+  const el=document.elementFromPoint(t.clientX,t.clientY);
+  const col=el?el.closest('.column'):null;
+  if(touchCard&&!touchCard.dataset.placed){
+    if(col){
+      const colSound=col.id.replace('col-','');
+      if(touchCard.dataset.sound===colSound) placeCard(touchCard.dataset.word,colSound);
+      else shakeWrong(touchCard);
+    }
+  }
+  touchCard=null;lastTZ=null;draggedId=null;
+}
+
+// Init
+resetGame();
+
+// Attach dragleave after DOM ready
+document.querySelectorAll('.column').forEach(col=>{
+  col.addEventListener('dragleave',e=>{
+    if(!col.contains(e.relatedTarget))col.classList.remove('drag-over');
+  });
+});
+</script>
+</body>
+</html>
